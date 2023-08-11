@@ -1,10 +1,10 @@
 [package]
 name = "telemetry-subscribers"
-version = "0.2.0"
+version = "0.3.0"
 license = "Apache-2.0"
-authors = ["Evan Chan <echan@mystenlabs.com>"]
+authors = ["Evan Chan <velvia@gmail.com>"]
 description = "Library for common telemetry and observability functionality"
-repository = "https://github.com/mystenlabs/mysten-infra"
+repository = "https://github.com/velvia/telemetry-subscribers"
 edition = "2021"
 publish = ["crates-io"]
 
@@ -24,7 +24,7 @@ tracing-opentelemetry = { version = "0.18.0", optional = true }
 tracing-subscriber = { version = "0.3.15", features = ["std", "time", "registry", "env-filter"] }
 
 [features]
-default = ["jaeger", "chrome"]
+default = ["jaeger"]
 tokio-console = ["console-subscriber"]
 jaeger = ["tracing-opentelemetry", "opentelemetry", "opentelemetry-jaeger"]
 chrome = ["tracing-chrome"]
