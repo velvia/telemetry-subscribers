@@ -53,12 +53,13 @@ It requires the `json` crate feature to be enabled.
 
 To see nested spans visualized with [Jaeger](https://www.jaegertracing.io), do the following:
 
-1. Run this to get a local Jaeger container: `docker run -d -p6831:6831/udp -p6832:6832/udp -p16686:16686 jaegertracing/all-in-one:latest`
+1. Run this to get a local Jaeger container: `docker run -d -p6831:6831/udp -p6832:6832/udp -p16686:16686 jaegertracing/all-in-one:1.48`
 2. Set `enable_jaeger` config setting to true or set `TOKIO_JAEGER` env var
 3. Run your app
 4. Browse to `http://localhost:16686/` and select the service you configured using `service_name`
 
 NOTE: separate spans (which are not nested) are not connected as a single trace for now.
+NOTE2: The jaegertracing container `latest` tag does not seem to contain `arm64` images for Apple silicon Macbooks.
 
 Jaeger subscriber is enabled by default but is protected by the jaeger feature flag.  If you'd like to leave
 out the Jaeger dependencies, you can turn off the default-features in your dependency:
