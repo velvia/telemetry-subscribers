@@ -142,7 +142,7 @@ pub type BoxError = Box<dyn std::error::Error + Send + Sync + 'static>;
 /// - log_file: If defined, write output to a file starting with this name, ex app.log
 /// - log_level: error/warn/info/debug/trace, defaults to info
 /// - service_name:
-#[derive(Default, Clone, Debug)]
+#[derive(Default)]
 pub struct TelemetryConfig {
     /// The name of the service for Jaeger and Bunyan
     pub service_name: String,
@@ -169,6 +169,8 @@ pub struct TelemetryConfig {
     pub crash_on_panic: bool,
     /// Optional Prometheus registry - if present, all enabled span latencies are measured
     pub prom_registry: Option<prometheus::Registry>,
+    /// Pass in any additional custom layers that the consumer wants their subscriber to be created with
+    pub custom_layers: Vec<Box<dyn Layer<Registry> + Send + Sync + 'static>>,
 }
 
 #[must_use]
@@ -261,6 +263,7 @@ impl TelemetryConfig {
             panic_hook: true,
             crash_on_panic: false,
             prom_registry: None,
+            custom_layers: Vec::new(),
         }
     }
 
@@ -281,6 +284,14 @@ impl TelemetryConfig {
 
     pub fn with_prom_registry(mut self, registry: &prometheus::Registry) -> Self {
         self.prom_registry = Some(registry.clone());
+        self
+    }
+
+    pub fn with_layer<L>(mut self, layer: L) -> Self
+    where
+        L: Layer<Registry> + Send + Sync + 'static,
+    {
+        self.custom_layers.push(Box::new(layer));
         self
     }
 
@@ -413,6 +424,10 @@ impl TelemetryConfig {
                 .with_filter(log_filter)
                 .boxed();
             layers.push(fmt_layer);
+        }
+
+        for layer in config.custom_layers {
+            layers.push(layer);
         }
 
         tracing_subscriber::registry().with(layers).init();
