@@ -203,7 +203,6 @@ impl FilterHandle {
 fn get_output(log_file: Option<String>) -> (NonBlocking, WorkerGuard) {
     if let Some(logfile_prefix) = log_file {
         let file_appender = tracing_appender::rolling::daily("", logfile_prefix);
-        println!("The file appender {:?}", file_appender);
         tracing_appender::non_blocking(file_appender)
     } else {
         tracing_appender::non_blocking(stderr())
