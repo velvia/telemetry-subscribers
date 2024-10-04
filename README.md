@@ -29,7 +29,7 @@ You can also run the example and see output in ANSI color:
 
 ## Features
 - `jaeger` - this feature is enabled by default as it enables jaeger tracing
-- `json` - Bunyan formatter - JSON log output, optional
+- `json` - uses the JSON feature from the [tracing crate](https://docs.rs/tracing-subscriber/latest/tracing_subscriber/fmt/format/struct.Json.html), optional
 - `tokio-console` - [Tokio-console](https://github.com/tokio-rs/console) subscriber, optional
 - `chrome` - enables use of `chrome://tracing` to visualize output, optional
 
