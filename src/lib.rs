@@ -119,11 +119,10 @@ use std::{
 use tracing::metadata::LevelFilter;
 use tracing::Level;
 use tracing_appender::non_blocking::{NonBlocking, WorkerGuard};
-use tracing_bunyan_formatter::{BunyanFormattingLayer, JsonStorageLayer};
 use tracing_subscriber::{
-    filter,
+    filter::{self, FilterExt},
     fmt::{self, format::FmtSpan},
-    layer::SubscriberExt,
+    layer::{Filter, SubscriberExt},
     reload,
     util::SubscriberInitExt,
     EnvFilter, Layer, Registry,
@@ -171,6 +170,8 @@ pub struct TelemetryConfig {
     pub prom_registry: Option<prometheus::Registry>,
     /// Pass in any additional custom layers that the consumer wants their subscriber to be created with
     pub custom_layers: Vec<Box<dyn Layer<Registry> + Send + Sync + 'static>>,
+    /// Pass in any custom filter that will be applied along with the default filter
+    pub custom_filter: Option<Box<dyn Filter<Registry> + Send + Sync>>,
 }
 
 #[must_use]
@@ -264,6 +265,7 @@ impl TelemetryConfig {
             crash_on_panic: false,
             prom_registry: None,
             custom_layers: Vec::new(),
+            custom_filter: None,
         }
     }
 
@@ -292,6 +294,19 @@ impl TelemetryConfig {
         L: Layer<Registry> + Send + Sync + 'static,
     {
         self.custom_layers.push(Box::new(layer));
+        self
+    }
+
+    pub fn with_json_logs(mut self) -> Self {
+        self.json_log_output = true;
+        self
+    }
+
+    pub fn with_custom_filter<F>(mut self, filter: F) -> Self
+    where
+        F: Filter<Registry> + Send + Sync + 'static,
+    {
+        self.custom_filter = Some(Box::new(filter));
         self
     }
 
@@ -400,32 +415,31 @@ impl TelemetryConfig {
         }
 
         let (nb_output, worker_guard) = get_output(config.log_file.clone());
-        if config.json_log_output {
-            // See https://www.lpalmieri.com/posts/2020-09-27-zero-to-production-4-are-we-observable-yet/#5-7-tracing-bunyan-formatter
-            // Also Bunyan layer addes JSON logging for tracing spans with duration information
-            let json_layer = JsonStorageLayer
-                .and_then(
-                    BunyanFormattingLayer::new(config.service_name, nb_output)
-                        .with_filter(log_filter),
-                )
-                .boxed();
-            layers.push(json_layer);
+
+        //  Create the base format layer
+        let fmt_layer = fmt::layer().with_writer(nb_output);
+        let fmt_layer = if config.json_log_output {
+            let layer = fmt_layer.json().flatten_event(true);
+            if let Some(custom_filter) = config.custom_filter {
+                layer.with_filter(log_filter.and(custom_filter)).boxed()
+            } else {
+                layer.with_filter(log_filter).boxed()
+            }
         } else {
-            // Output to file or to stderr with ANSI colors
             let span_events = if config.span_log_output {
                 FmtSpan::NEW | FmtSpan::CLOSE
             } else {
                 FmtSpan::NONE
             };
-            let fmt_layer = fmt::layer()
+            fmt_layer
                 .with_ansi(config.log_file.is_none() && stderr().is_tty())
                 .with_span_events(span_events)
-                .with_writer(nb_output)
                 .with_filter(log_filter)
-                .boxed();
-            layers.push(fmt_layer);
-        }
+                .boxed()
+        };
+        layers.push(fmt_layer);
 
+        //  Add custom layers
         for layer in config.custom_layers {
             layers.push(layer);
         }
